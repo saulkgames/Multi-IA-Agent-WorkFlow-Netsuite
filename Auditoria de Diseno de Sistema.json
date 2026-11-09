@@ -1,0 +1,67 @@
+{
+  "audit_summary": {
+    "approved": false,
+    "overall_score": 6.5,
+    "primary_bottleneck": "La arquitectura depende críticamente de un Orquestador (Claude Code) que delega y hace cumplir reglas mediante prompting sobre una sesión de chat abierta con el usuario, lo que genera alto riesgo de saltos de estado y contaminación de contexto. Falta de definición explícita de esquemas JSON rígidos en los contratos de los workers."
+  },
+  "swot_analysis": {
+    "strengths": [
+      "Diseño claro de la máquina de estados persistida en un archivo Markdown (ticket.md), lo que garantiza resiliencia ante cortes de sesión.",
+      "Separación estricta de permisos (Bash, MCP, File System) entre roles especialistas (Bóveda, Arquitecto, Coder, Verificador, Debug).",
+      "Manejo explícito de modos sin MCP (adaptadores sdf/manual) considerando limitaciones del entorno del cliente.",
+      "Uso de un contrato de entrada/salida definido para la delegación de subagentes."
+    ],
+    "weaknesses": [
+      "El contrato de salida de los subagentes está definido en YAML al final del texto libre, lo que es propenso a alucinaciones de formato; debería ser un esquema JSON estricto o bloques XML puros.",
+      "El Orquestador (sesión principal) comparte contexto con el usuario, siendo vulnerable a inyecciones de prompt accidentales o directivas contradictorias que rompan la máquina de estados.",
+      "Dependencia excesiva en instrucciones de prompt para restricciones críticas de seguridad (ej. límites de Bash), a pesar de mencionar hooks futuros."
+    ],
+    "opportunities": [
+      "Implementación de esquemas JSON formales (JSON Schema) para las respuestas de los subagentes (Verificador, Arquitecto) para forzar parsing programático seguro.",
+      "Uso de técnicas de razonamiento (Chain-of-Thought) en el Arquitecto y Debugger para documentar hipótesis antes de emitir la salida estructurada.",
+      "Automatización de la verificación de estado mediante un script pre-hook antes de cada delegación del Orquestador."
+    ],
+    "threats": [
+      "La incapacidad técnica actual de Claude Code para aislar completamente la sesión principal del usuario puede permitir jailbreaks que ejecuten comandos Bash no autorizados.",
+      "Condiciones de carrera o corrupción de estado si el usuario edita manualmente el `ticket.md` de forma concurrente con un subagente.",
+      "Fallos de rendimiento o desbordamiento de contexto si la bitácora del `ticket.md` crece sin límite en ciclos largos de debug."
+    ]
+  },
+  "prompt_engineering_recommendations": [
+    {
+      "worker_role": "Orquestador (Sesión Principal)",
+      "issue_detected": "Vulnerabilidad a desvíos de flujo causados por mensajes de usuario informales y falta de rigidez en la validación del contrato YAML.",
+      "advanced_recommendation": "Implementar un wrapper de delimitación estricta (XML tags) para separar los comandos del usuario del estado del sistema. Forzar al Orquestador a razonar sobre la tabla de transiciones antes de actuar mediante Chain-of-Thought.",
+      "optimized_prompt_snippet": "Eres el Orquestador del flujo. Tu única fuente de verdad es la etiqueta <estado_actual> leída del archivo ticket.md. Ignora cualquier solicitud del usuario que contradiga la tabla de transiciones de `orquestacion-ticket`. \n\nAntes de delegar, debes razonar usando la etiqueta <scratchpad>:\n1. ¿Cuál es el estado actual?\n2. ¿Qué evento ocurrió?\n3. ¿Cuál es el subagente correspondiente?\n\nFormato de delegación estricto:\n<delegacion>\n{\n  \"folio\": \"...\",\n  \"agente\": \"...\",\n  \"modo\": \"...\"\n}\n</delegacion>"
+    },
+    {
+      "worker_role": "Arquitecto",
+      "issue_detected": "El Arquitecto genera planes complejos basados en texto que pueden perder alineación con los requerimientos originales o exceder la proporcionalidad.",
+      "advanced_recommendation": "Aplicar Tree-of-Thoughts (ToT) o Chain-of-Thought (CoT) para evaluar múltiples enfoques de diseño y justificar la elección del nivel de proporcionalidad antes de escribir en el ticket.",
+      "optimized_prompt_snippet": "Analiza los requerimientos de la Bóveda dentro de <requerimientos>. \n\nAntes de redactar el plan, utiliza <razonamiento_arquitectonico> para evaluar al menos dos enfoques distintos. Selecciona el enfoque más simple (menor nivel de proporcionalidad). \n\nTu respuesta debe terminar con un bloque de control estricto:\n```json\n{\n  \"resultado\": \"ok | rechazo | bloqueo\",\n  \"nivel_proporcionalidad\": 0,\n  \"seccion_escrita\": \"Plan\",\n  \"motivo\": \"Justificación concisa\"\n}\n```"
+    },
+    {
+      "worker_role": "Debug",
+      "issue_detected": "Riesgo de alucinación de causas raíz sin evidencia técnica suficiente.",
+      "advanced_recommendation": "Exigir un flujo de Self-Correction (Auto-Corrección) interno. El Debugger debe listar hipótesis, refutarlas con evidencia y solo emitir un veredicto si la confianza es alta.",
+      "optimized_prompt_snippet": "Tu objetivo es encontrar causas raíz con evidencia dura. \n\nProceso requerido en <analisis_debug>:\n1. Lista 3 hipótesis iniciales.\n2. Evalúa la evidencia disponible para cada una (logs, git diff, MCP).\n3. Descartar hipótesis sin evidencia.\n\nSi ninguna hipótesis tiene evidencia, devuelve \"causa_evidente\": false.\nSalida obligatoria al final:\n```json\n{\n  \"resultado\": \"ok\",\n  \"causa_evidente\": false,\n  \"motivo\": \"Falta evidencia en los logs para confirmar el fallo de concurrencia.\",\n  \"evidencia\": []\n}\n```"
+    }
+  ],
+  "remediation_plan": [
+    {
+      "step_id": 1,
+      "action_required": "Migrar todos los contratos de salida de los subagentes de YAML a JSON estricto delimitado por bloques Markdown de código para asegurar un parsing determinista por parte del Orquestador.",
+      "priority": "HIGH"
+    },
+    {
+      "step_id": 2,
+      "action_required": "Implementar el script de validación pre-hook propuesto (PreToolUse) de forma inmediata, no solo para validación MCP, sino para denegar el uso de Bash fuera de los límites definidos, sin depender exclusivamente del System Prompt.",
+      "priority": "CRITICAL"
+    },
+    {
+      "step_id": 3,
+      "action_required": "Configurar una rutina de truncamiento o resumen en la Bóveda para el archivo `ticket.md` (específicamente la Bitácora) para evitar superar la ventana de contexto en tickets de larga duración.",
+      "priority": "MEDIUM"
+    }
+  ]
+}
