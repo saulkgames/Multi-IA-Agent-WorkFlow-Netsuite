@@ -8,21 +8,31 @@ Flujo de trabajo aumentado con IA para trabajar y resolver tickets de proyectos 
 
 ## Estado actual del repositorio
 
-El repositorio solo contiene `README.md`. No existe todavía código, manifiesto de dependencias (`package.json`, `suitecloud.config.js`, `manifest.xml`), configuración de lint ni pruebas.
+El repositorio contiene solo documentos de diseño. No hay código, scripts, plantillas, skills ni definiciones de agentes; tampoco comandos de build, lint o test. No inventarlos: cuando se agregue el kit (agentes, skills, scripts `.mjs`, proyecto SDF), documentar aquí los comandos reales.
 
-No hay comandos de build, lint o test definidos. No inventarlos: cuando se agregue el primer proyecto (por ejemplo, un proyecto SuiteCloud Development Framework), actualizar esta sección con los comandos reales que declare el repositorio.
-
-## Arquitectura
-
-Pendiente de definir. Inferencia a partir del README, no verificada en código: el alcance declarado implica dos dimensiones que la estructura deberá separar.
-
-| Dimensión | Implicación |
+| Archivo | Contenido |
 |---|---|
-| Multi-cuenta NetSuite | Cada cuenta tiene su propio ID, roles, campos personalizados y scripts. Credenciales y configuración por cuenta no deben compartirse ni versionarse. |
-| Por ticket / solución | El trabajo se organiza por ticket o solución personalizada; cada uno debe ser rastreable a su cuenta destino. |
+| `Arquitectura multiagente – Flujo de desarrollo NetSuite v0.4.md` | Diseño vigente. Fuente de verdad de la arquitectura. Parte de un kit v0.3 que no está en este repo. |
+| `Auditoria de Diseno de Sistema.json` | Auditoría externa del diseño v0.4: FODA, recomendaciones de prompts y plan de remediación. No aprobado, calificación 6.5. Sus recomendaciones no están validadas contra el diseño. |
 
-Cuando se defina la estructura de carpetas, documentar aquí cómo se mapea cuenta → proyecto → ticket y dónde vive la configuración por cuenta.
+Los nombres de archivo llevan espacios y una raya larga (`–`); citarlos entre comillas en la terminal.
+
+## Arquitectura (según diseño v0.4)
+
+Supervisor jerárquico que ejecuta una máquina de estados persistida en el archivo `.md` de cada ticket.
+
+| Pieza | Definición |
+|---|---|
+| Orquestador | La sesión principal de Claude Code. Único escritor de `estado` y de los contadores (`iteracion`, `rondas_plan`). No diseña, no programa, no consulta NetSuite. |
+| Especialistas | Bóveda (ingesta y cierre), Arquitecto, Coder, Verificador NetSuite, Debug. Agrupados por permisos y por confianza de la entrada, no por tema. |
+| Comunicación | Ningún subagente habla con otro. Todo pasa por el orquestador y por secciones del ticket. Contrato de entrada y salida en YAML (sección 3 del diseño). |
+| Estado | Frontmatter del ticket, `perfil.md` por cliente, inventario del ambiente y Git (rama `t-<folio>`, folio en cada commit). Una variable, un escritor. |
+| Acceso a NetSuite | Un puerto con tres adaptadores según `conexion` del perfil: `mcp`, `sdf`, `manual`. |
+| Puertas humanas | Solo el usuario aprueba y solo el usuario despliega. Ningún agente ejecuta `suitecloud project:deploy`. |
+| Fiscal | `fiscal-cfdi` es la única fuente de verdad fiscal (modos diseño, diagnóstico, validación). `impacto_fiscal` solo puede pasar de `false` a `true`. |
+
+Al modificar el diseño, mantener coherentes entre sí la tabla de transiciones (sección 3), el diagrama de estados (sección 5), la matriz de herramientas (sección 2) y la tabla de variables (sección 4). Hoy tienen discrepancias; por ejemplo, `en_diagnostico` existe en el diagrama y no en la tabla.
 
 ## Convenciones
 
-Documentación y comunicación en español de México.
+Documentación y comunicación en español de México. Los valores sin medición se marcan como "supuesto", igual que en el diseño.
