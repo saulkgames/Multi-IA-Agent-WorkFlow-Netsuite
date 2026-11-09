@@ -708,6 +708,66 @@
         "is_absence": false
       },
       "consequence": "El costo crece con el número de rondas y con el tamaño de la Bitácora, sin cambio en el resultado."
+    },
+    {
+      "id": "F-033",
+      "dimension": "resilience",
+      "severity": "MEDIUM",
+      "worker_role": null,
+      "checklist_item": null,
+      "title": "Métricas sin campos: el flujo no se puede medir completo",
+      "description": "Faltan los campos fecha_cierre y min_revision_doc, y la consulta de la métrica 1 no aplica la ventana de 30 días. Las métricas 3 y 4 no se calculan y la 1 es parcial. La medición base de P11 no puede iniciar completa.",
+      "evidence": {
+        "location": "Sección 11, métricas; pendientes P6 y P7",
+        "excerpt": "Para medir las métricas 1, 3 y 4 en v0.4 faltan: el campo `fecha_cierre`, la ventana de 30 días en la consulta",
+        "is_absence": false
+      },
+      "consequence": "Sin medición base no se puede evaluar si el flujo reduce errores en producción ni ajustar los límites con datos (S30)."
+    },
+    {
+      "id": "F-034",
+      "dimension": "tools_permissions",
+      "severity": "MEDIUM",
+      "worker_role": null,
+      "checklist_item": null,
+      "title": "Los controles técnicos dependen de supuestos de Claude Code sin verificar",
+      "description": "El prefijo de las herramientas MCP, la precarga de skills, la herramienta Skill, el acceso a la bóveda, las reglas deny y el hook dependen de supuestos pendientes (S3, S8, S10, S14 a S16). Mientras no se validen, la postura de seguridad real es desconocida.",
+      "evidence": {
+        "location": "Sección 13, P9; sección 10",
+        "excerpt": "Validar en el equipo del usuario los supuestos S3, S6, S8 a S10, S13 a S16, S19 y S21 a S28",
+        "is_absence": false
+      },
+      "consequence": "Un control que no funciona como se supone falla en silencio: herramientas no disponibles, skills ausentes o despliegue no bloqueado."
+    },
+    {
+      "id": "F-035",
+      "dimension": "prompt_quality",
+      "severity": "LOW",
+      "worker_role": null,
+      "checklist_item": "P9",
+      "title": "Tres prompts con skills no indican invocarlas si falla la precarga",
+      "description": "Los prompts v0.3 de arquitecto, coder y tester indican invocar sus skills si no aparecen precargadas. Los de fiscal, levantamiento y documentador no lo indican, aunque S8 registra un reporte de que la precarga no ocurre.",
+      "evidence": {
+        "location": "agents/fiscal.md, agents/levantamiento.md y agents/documentador.md; sección 10, S8",
+        "excerpt": "Existe un reporte público de que la precarga no ocurre; probar en el piloto",
+        "is_absence": false
+      },
+      "consequence": "Esos agentes pueden operar sin su procedimiento de dominio: validación fiscal, formato del inventario o reglas de anonimización."
+    },
+    {
+      "id": "F-036",
+      "dimension": "tools_permissions",
+      "severity": "LOW",
+      "worker_role": "Verificador NetSuite",
+      "checklist_item": null,
+      "title": "El límite de consultas del Verificador solo existe en el prompt",
+      "description": "D6 fija un máximo de 5 consultas por ticket, con excepciones justificadas. Ningún contador lo registra: la regla depende de que el agente, sin memoria entre invocaciones, conozca las consultas previas del ticket.",
+      "evidence": {
+        "location": "agents/tester.md, paso 2; sección 9, D6",
+        "excerpt": "Máximo 5 consultas por ticket. Si necesitas más, justifica cada una.",
+        "is_absence": false
+      },
+      "consequence": "El límite puede excederse sin justificación ni registro; el impacto es de costo y carga, porque el rol es de solo lectura."
     }
   ],
   "dimension_scores": [
@@ -733,7 +793,7 @@
       "dimension": "resilience",
       "score": 5.0,
       "weight": 15,
-      "rationale": "Tabla de fallas, falla cerrada y escalamiento definidos. Transiciones, inventario y validación fiscal dependen del modelo; reintentos no idempotentes."
+      "rationale": "Tabla de fallas, falla cerrada y escalamiento definidos. Transiciones, inventario y validación fiscal dependen del modelo; reintentos no idempotentes; métricas incompletas."
     },
     {
       "dimension": "security_injection",
@@ -814,7 +874,9 @@
           "F-008",
           "F-010",
           "F-014",
-          "F-018"
+          "F-018",
+          "F-034",
+          "F-036"
         ]
       },
       {
@@ -853,7 +915,8 @@
           "F-026",
           "F-027",
           "F-029",
-          "F-030"
+          "F-030",
+          "F-035"
         ]
       },
       {
@@ -866,10 +929,11 @@
       },
       {
         "scope": "infrastructure",
-        "statement": "Pausas de aprobación y reintentos sin estado ni idempotencia.",
+        "statement": "Pausas de aprobación y reintentos sin estado ni idempotencia; métricas sin campos para medir el flujo.",
         "finding_ids": [
           "F-015",
-          "F-021"
+          "F-021",
+          "F-033"
         ]
       }
     ],
@@ -1266,6 +1330,41 @@
         3
       ],
       "acceptance_criteria": "El contexto de cada delegación no incluye historial de etapas previas ni secciones no requeridas."
+    },
+    {
+      "step_id": 16,
+      "action_required": "Agregar fecha_cierre y min_revision_doc a la plantilla del ticket y la ventana de 30 días a la consulta de la métrica 1 en Tablero.md.",
+      "priority": "MEDIUM",
+      "finding_ids": [
+        "F-033"
+      ],
+      "depends_on_steps": [
+        2
+      ],
+      "acceptance_criteria": "Con dos tickets de prueba cerrados, Tablero.md calcula las métricas 1 a 4."
+    },
+    {
+      "step_id": 17,
+      "action_required": "Validar en el equipo, antes del piloto, los supuestos S3, S8 a S10 y S13; S14 a S16 se validan con los criterios de aceptación de los pasos 4 a 6.",
+      "priority": "MEDIUM",
+      "finding_ids": [
+        "F-034"
+      ],
+      "depends_on_steps": [],
+      "acceptance_criteria": "Cada supuesto queda marcado como verificado o refutado, con evidencia de ejecución en la sección 10."
+    },
+    {
+      "step_id": 18,
+      "action_required": "Agregar la instrucción de invocar skills a fiscal, levantamiento y documentador; registrar en el contrato las consultas ejecutadas y sumarlas por ticket.",
+      "priority": "LOW",
+      "finding_ids": [
+        "F-035",
+        "F-036"
+      ],
+      "depends_on_steps": [
+        3
+      ],
+      "acceptance_criteria": "Los tres prompts incluyen la instrucción y validar-ticket.mjs reporta el total de consultas por ticket."
     }
   ],
   "audit_summary": {
